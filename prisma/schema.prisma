@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  fullName      String
+  phone         String?
+  businessName  String
+  businessType  String?
+  businessLogo  String?
+  businessUrl   String?
+  address       String?
+  country       String?
+  role          String    @default("user")
+  status        String    @default("active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  forms         ReviewForm[]
+  reviews       Review[]
+}
+
+model ReviewForm {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  logo            String?
+  thankYouMessage String   @default("Thank you for your review!")
+  primaryColor    String   @default("#4F46E5")
+  secondaryColor  String   @default("#818CF8")
+  backgroundColor String   @default("#F9FAFB")
+  textColor       String   @default("#111827")
+  customFields    String   @default("[]")
+  slug            String   @unique
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  reviews         Review[]
+}
+
+model Review {
+  id              String   @id @default(uuid())
+  formId          String
+  form            ReviewForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName        String
+  companyName     String?
+  profileImage    String?
+  referenceImages String?
+  email           String
+  country         String
+  rating          Int
+  message         String
+  customFieldData String?
+  isApproved      Boolean  @default(false)
+  isRead          Boolean  @default(false)
+  likes           Int      @default(0)
+  reply           String?
+  repliedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
