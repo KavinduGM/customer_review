@@ -69,10 +69,18 @@ export default async function ReviewsPage({ params }: Props) {
         user: form.user,
       }}
       reviews={reviews.map((r) => ({
-        ...r,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
+        id: r.id,
+        fullName: r.fullName,
+        companyName: r.companyName,
+        profileImage: r.profileImage,
+        referenceImages: r.referenceImages,
+        country: r.country,
+        rating: r.rating,
+        message: r.message,
+        likes: r.likes,
+        reply: r.reply,
         repliedAt: r.repliedAt?.toISOString() || null,
+        createdAt: r.createdAt.toISOString(),
       }))}
       stats={{ total: reviews.length, averageRating: Math.round(averageRating * 10) / 10 }}
     />

@@ -49,10 +49,10 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as Record<string, unknown>).role;
-        token.businessName = (user as Record<string, unknown>).businessName;
-        token.businessLogo = (user as Record<string, unknown>).businessLogo;
-        token.username = (user as Record<string, unknown>).username;
+        token.role = (user as unknown as Record<string, unknown>).role;
+        token.businessName = (user as unknown as Record<string, unknown>).businessName;
+        token.businessLogo = (user as unknown as Record<string, unknown>).businessLogo;
+        token.username = (user as unknown as Record<string, unknown>).username;
       }
       return token;
     },

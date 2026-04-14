@@ -62,10 +62,18 @@ export default async function ReviewPage({ params }: Props) {
   return (
     <ReviewFormClient
       form={{
-        ...form,
+        id: form.id,
+        title: form.title,
+        description: form.description,
+        logo: form.logo,
+        thankYouMessage: form.thankYouMessage,
+        primaryColor: form.primaryColor,
+        secondaryColor: form.secondaryColor,
+        backgroundColor: form.backgroundColor,
+        textColor: form.textColor,
+        slug: form.slug,
         customFields: JSON.parse(form.customFields || "[]"),
-        createdAt: form.createdAt.toISOString(),
-        updatedAt: form.updatedAt.toISOString(),
+        user: form.user,
       }}
     />
   );
