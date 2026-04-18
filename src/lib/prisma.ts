@@ -6,9 +6,16 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+function resolveDatabaseUrl() {
+  // Prefer DATABASE_URL (set in Docker / production) so the same code works
+  // in both local dev and containerised deploys.
+  const url = process.env.DATABASE_URL;
+  if (url) return url;
+  return `file:${path.join(process.cwd(), "dev.db")}`;
+}
+
 function createPrismaClient() {
-  const dbPath = path.join(process.cwd(), "dev.db");
-  const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
+  const adapter = new PrismaBetterSqlite3({ url: resolveDatabaseUrl() });
   return new PrismaClient({ adapter } as never);
 }
 
