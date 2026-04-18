@@ -19,18 +19,22 @@ RUN npx prisma generate
 # Build Next.js (produces .next/standalone)
 RUN npm run build
 
-# Production image
-FROM base AS runner
-RUN apk add --no-cache libc6-compat
+# Production image — use slim (glibc) instead of alpine (musl) to avoid
+# Prisma engine compatibility headaches.
+FROM node:22-slim AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone build (includes the minimal node_modules Next bundles)
+# Copy Next.js standalone output
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -39,14 +43,13 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
-# Copy the Prisma CLI and its engine binaries so `migrate deploy` works
-# without an npm install at runtime.
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# Install Prisma fresh in the runner so the engine binaries match this
+# image's libc, instead of copying possibly-incompatible files from builder.
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev
 
-# Copy generated Prisma client
-COPY --from=builder /app/src/generated ./src/generated
+# Regenerate the Prisma client against the correct engines for this image
+RUN npx prisma generate
 
 # Persistent data directory for SQLite. Mount a volume here in production
 # so the database survives container restarts and redeploys.
@@ -65,4 +68,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/dev.db"
 
 # Apply any pending Prisma migrations, then boot the Next.js standalone server.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
