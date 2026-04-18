@@ -39,10 +39,11 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Prisma CLI + engines. Safe to copy because builder and runner share
-# the same slim (glibc) base image.
+# the same slim (glibc) base image. We skip the .bin/ shim because it's
+# a symlink in the source; Docker would flatten it into a real file,
+# detaching it from the .wasm assets in prisma/build/.
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Generated Prisma client
 COPY --from=builder /app/src/generated ./src/generated
@@ -59,5 +60,6 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/data/dev.db"
 
-# Apply pending Prisma migrations, then boot the Next.js standalone server
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node server.js"]
+# Apply pending Prisma migrations, then boot the Next.js standalone server.
+# Invoke the CLI via its real path so the bundled .wasm files resolve.
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
