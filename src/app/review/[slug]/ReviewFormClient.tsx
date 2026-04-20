@@ -3,6 +3,15 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { FiStar, FiUpload, FiCheck } from "react-icons/fi";
+import {
+  MdSentimentVerySatisfied,
+  MdSentimentSatisfied,
+  MdSentimentNeutral,
+  MdSentimentDissatisfied,
+  MdSentimentVeryDissatisfied,
+} from "react-icons/md";
+import type { IconType } from "react-icons";
+import { uploadFile } from "@/lib/upload-client";
 
 interface CustomField {
   id: string;
@@ -53,42 +62,35 @@ export default function ReviewFormClient({ form }: { form: FormData }) {
     customFieldData: {} as Record<string, string>,
   });
 
-  const uploadFile = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const result = await res.json();
-    return result.url;
-  };
-
   const handleProfileImage = async (file: File) => {
-    const url = await uploadFile(file);
-    setData({ ...data, profileImage: url });
+    try {
+      const url = await uploadFile(file);
+      setData((d) => ({ ...d, profileImage: url }));
+    } catch (e) {
+      toast.error((e as Error).message || "Could not upload photo");
+    }
   };
 
   const handleReferenceImages = async (files: FileList) => {
-    const urls: string[] = [];
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      urls.push(url);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        uploaded.push(await uploadFile(file));
+      }
+      setData((d) => ({ ...d, referenceImages: [...d.referenceImages, ...uploaded] }));
+    } catch (e) {
+      toast.error((e as Error).message || "Could not upload reference image");
     }
-    setData({ ...data, referenceImages: [...data.referenceImages, ...urls] });
   };
 
-  const getRatingEmoji = (rating: number) => {
-    if (rating === 5) return "\u{1F929}";
-    if (rating >= 4) return "\u{1F60A}";
-    if (rating === 3) return "\u{1F642}";
-    return "\u{1F61E}";
-  };
-
-  const getRatingText = (rating: number) => {
-    if (rating === 5) return "Excellent!";
-    if (rating === 4) return "Great!";
-    if (rating === 3) return "Good";
-    if (rating === 2) return "Fair";
-    if (rating === 1) return "Poor";
-    return "";
+  // Professional 2D sentiment icons instead of emoji. One icon per rating,
+  // paired with a short label and a dedicated colour for stronger feedback.
+  const ratingMeta: Record<number, { label: string; Icon: IconType; color: string }> = {
+    5: { label: "Excellent", Icon: MdSentimentVerySatisfied, color: "#16A34A" },
+    4: { label: "Great", Icon: MdSentimentSatisfied, color: "#65A30D" },
+    3: { label: "Good", Icon: MdSentimentNeutral, color: "#CA8A04" },
+    2: { label: "Fair", Icon: MdSentimentDissatisfied, color: "#EA580C" },
+    1: { label: "Poor", Icon: MdSentimentVeryDissatisfied, color: "#DC2626" },
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,29 +142,25 @@ export default function ReviewFormClient({ form }: { form: FormData }) {
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: form.backgroundColor }}>
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {/* Header — solid primary colour, no gradient */}
         <div
-          className="rounded-t-3xl p-8 text-center relative overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})` }}
+          className="rounded-t-3xl px-8 py-10 text-center"
+          style={{ backgroundColor: form.primaryColor }}
         >
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-          </div>
-          <div className="relative z-10">
-            {(form.logo || form.user.businessLogo) && (
+          {(form.logo || form.user.businessLogo) && (
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-white shadow-sm">
               <img
                 src={form.logo || form.user.businessLogo || ""}
                 alt={form.user.businessName}
-                className="h-14 mx-auto mb-4 rounded-xl object-contain bg-white/20 p-2"
+                className="max-h-12 max-w-12 object-contain"
               />
-            )}
-            <h1 className="text-3xl font-bold text-white mb-2">{form.title}</h1>
-            {form.description && (
-              <p className="text-white/80 text-sm max-w-md mx-auto">{form.description}</p>
-            )}
-            <p className="text-white/60 text-xs mt-3">{form.user.businessName}</p>
-          </div>
+            </div>
+          )}
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{form.title}</h1>
+          {form.description && (
+            <p className="text-white/80 text-sm max-w-md mx-auto mt-2">{form.description}</p>
+          )}
+          <p className="text-white/60 text-xs mt-3 uppercase tracking-wider">{form.user.businessName}</p>
         </div>
 
         {/* Form */}
@@ -175,7 +173,7 @@ export default function ReviewFormClient({ form }: { form: FormData }) {
             <label className="block text-sm font-semibold mb-4" style={{ color: form.textColor }}>
               How would you rate your experience? *
             </label>
-            <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="flex items-center justify-center gap-2 mb-4">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
@@ -183,7 +181,9 @@ export default function ReviewFormClient({ form }: { form: FormData }) {
                   onClick={() => setData({ ...data, rating: star })}
                   onMouseEnter={() => setHoveredStar(star)}
                   onMouseLeave={() => setHoveredStar(0)}
-                  className="transition-all duration-200 hover:scale-125"
+                  aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
+                  className="p-1 rounded-lg transition-all duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{ "--tw-ring-color": form.primaryColor } as React.CSSProperties}
                 >
                   <FiStar
                     className={`w-10 h-10 transition-all ${
@@ -195,14 +195,19 @@ export default function ReviewFormClient({ form }: { form: FormData }) {
                 </button>
               ))}
             </div>
-            {data.rating > 0 && (
-              <div className="flex items-center justify-center gap-2 animate-fadeIn">
-                <span className="text-3xl">{getRatingEmoji(data.rating)}</span>
-                <span className="text-sm font-medium" style={{ color: form.primaryColor }}>
-                  {getRatingText(data.rating)}
-                </span>
-              </div>
-            )}
+            {data.rating > 0 && (() => {
+              const meta = ratingMeta[data.rating];
+              const Icon = meta.Icon;
+              return (
+                <div
+                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full animate-fadeIn"
+                  style={{ backgroundColor: `${meta.color}14`, color: meta.color }}
+                >
+                  <Icon className="w-5 h-5" aria-hidden />
+                  <span className="text-sm font-semibold">{meta.label}</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

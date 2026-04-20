@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { FiStar, FiHeart, FiShield, FiArrowRight } from "react-icons/fi";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { FiStar, FiHeart, FiShield, FiArrowRight, FiArrowUpRight } from "react-icons/fi";
+import {
+  MdSentimentVerySatisfied,
+  MdSentimentSatisfied,
+  MdSentimentNeutral,
+  MdSentimentDissatisfied,
+  MdSentimentVeryDissatisfied,
+} from "react-icons/md";
+import type { IconType } from "react-icons";
 
 interface Review {
   id: string;
@@ -33,6 +41,41 @@ interface Props {
   stats: { total: number; averageRating: number };
 }
 
+const ratingMeta: Record<number, { label: string; Icon: IconType; color: string }> = {
+  5: { label: "Excellent", Icon: MdSentimentVerySatisfied, color: "#16A34A" },
+  4: { label: "Great", Icon: MdSentimentSatisfied, color: "#65A30D" },
+  3: { label: "Good", Icon: MdSentimentNeutral, color: "#CA8A04" },
+  2: { label: "Fair", Icon: MdSentimentDissatisfied, color: "#EA580C" },
+  1: { label: "Poor", Icon: MdSentimentVeryDissatisfied, color: "#DC2626" },
+};
+
+function Stars({ rating, size = "w-4 h-4" }: { rating: number; size?: string }) {
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <FiStar
+          key={s}
+          className={`${size} ${
+            s <= Math.round(rating)
+              ? "text-amber-400 fill-amber-400"
+              : "text-gray-200 fill-gray-100"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export default function ReviewsDisplayClient({ form, reviews, stats }: Props) {
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
 
@@ -42,196 +85,275 @@ export default function ReviewsDisplayClient({ form, reviews, stats }: Props) {
     setLikedReviews(new Set([...likedReviews, id]));
   };
 
-  const getRatingEmoji = (rating: number) => {
-    if (rating === 5) return "\u{1F929}";
-    if (rating >= 4) return "\u{1F60A}";
-    if (rating === 3) return "\u{1F642}";
-    return "\u{1F61E}";
-  };
+  const ratingDistribution = useMemo(
+    () =>
+      [5, 4, 3, 2, 1].map((star) => {
+        const count = reviews.filter((r) => r.rating === star).length;
+        const percentage = reviews.length ? (count / reviews.length) * 100 : 0;
+        return { star, count, percentage };
+      }),
+    [reviews]
+  );
 
-  const ratingDistribution = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((r) => r.rating === star).length,
-    percentage: reviews.length ? (reviews.filter((r) => r.rating === star).length / reviews.length) * 100 : 0,
-  }));
-
-  const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "true";
+  const isEmbed =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("embed") === "true";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div
-        className="py-12 px-4 text-center relative overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${form.primaryColor}, ${form.primaryColor}CC)` }}
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Hero — solid primary colour, no gradient blast */}
+      <header
+        className="px-4 pt-14 pb-24 text-center"
+        style={{ backgroundColor: form.primaryColor }}
       >
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-60 h-60 bg-white rounded-full blur-3xl"></div>
-        </div>
-        <div className="max-w-4xl mx-auto relative z-10">
+        <div className="max-w-3xl mx-auto">
           {form.user.businessLogo && (
-            <img src={form.user.businessLogo} alt="" className="h-12 mx-auto mb-4 rounded-xl object-contain bg-white/20 p-2" />
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-white shadow-sm">
+              <img
+                src={form.user.businessLogo}
+                alt=""
+                className="max-h-12 max-w-12 object-contain"
+              />
+            </div>
           )}
-          <h1 className="text-3xl font-bold text-white mb-2">{form.user.businessName}</h1>
-          <p className="text-white/70 text-sm mb-6">{form.title}</p>
-
-          {/* Stats */}
-          <div className="inline-flex items-center gap-6 bg-white/10 backdrop-blur-sm rounded-2xl px-8 py-5 border border-white/10">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white">{stats.averageRating}</div>
-              <div className="flex items-center justify-center gap-0.5 mt-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <FiStar
-                    key={s}
-                    className={`w-4 h-4 ${s <= Math.round(stats.averageRating) ? "text-yellow-400 fill-current" : "text-white/30"}`}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="w-px h-12 bg-white/20"></div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white">{stats.total}</div>
-              <div className="text-white/60 text-sm">Reviews</div>
-            </div>
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+            {form.user.businessName}
+          </h1>
+          <p className="text-white/75 text-sm mt-2">{form.title}</p>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Rating Distribution */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
-          <h3 className="font-semibold text-gray-900 mb-4">Rating Distribution</h3>
-          <div className="space-y-2">
-            {ratingDistribution.map((item) => (
-              <div key={item.star} className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-600 w-8">{item.star}&#9733;</span>
-                <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${item.percentage}%`, backgroundColor: form.primaryColor }}
-                  />
-                </div>
-                <span className="text-sm text-gray-400 w-8">{item.count}</span>
+      <main className="max-w-3xl mx-auto px-4 -mt-16 pb-16">
+        {/* Summary card — large, prominent rating */}
+        <section className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
+          <div className="grid grid-cols-1 sm:grid-cols-[auto,1fr] sm:gap-10 items-center">
+            <div className="flex flex-col items-center sm:items-start">
+              <div className="flex items-baseline gap-1">
+                <span className="text-6xl font-bold tracking-tight text-slate-900">
+                  {stats.averageRating.toFixed(1)}
+                </span>
+                <span className="text-lg text-slate-400 font-medium">/ 5</span>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="mt-1">
+                <Stars rating={stats.averageRating} size="w-5 h-5" />
+              </div>
+              <p className="text-sm text-slate-500 mt-2">
+                Based on <span className="font-semibold text-slate-700">{stats.total}</span>{" "}
+                {stats.total === 1 ? "review" : "reviews"}
+              </p>
+            </div>
 
-        {/* Reviews */}
-        {reviews.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-            <p className="text-gray-400">No reviews yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-all animate-fadeIn">
-                <div className="flex items-start gap-4">
-                  <div className="shrink-0">
-                    {review.profileImage ? (
-                      <img src={review.profileImage} alt="" className="w-12 h-12 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-2xl">
-                        {getRatingEmoji(review.rating)}
-                      </div>
-                    )}
+            <div className="mt-8 sm:mt-0 space-y-2">
+              {ratingDistribution.map((row) => (
+                <div key={row.star} className="flex items-center gap-3">
+                  <span className="flex items-center gap-1 w-10 text-sm font-medium text-slate-600">
+                    {row.star}
+                    <FiStar className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  </span>
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${row.percentage}%`,
+                        backgroundColor: form.primaryColor,
+                      }}
+                    />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center flex-wrap gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">{review.fullName}</span>
-                      {review.companyName && (
-                        <span className="text-xs text-gray-400">from {review.companyName}</span>
-                      )}
-                      <span className="flex items-center gap-0.5 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        <FiShield className="w-3 h-3" /> Verified
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 mb-3">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <FiStar
-                          key={s}
-                          className={`w-4 h-4 ${s <= review.rating ? "text-yellow-400 fill-current" : "text-gray-200"}`}
-                        />
-                      ))}
-                      <span className="text-xs text-gray-400 ml-2">
-                        {new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" })} &middot; {review.country}
-                      </span>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{review.message}</p>
+                  <span className="w-10 text-right text-sm tabular-nums text-slate-500">
+                    {row.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                    {/* Reference images */}
-                    {review.referenceImages && (
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        {JSON.parse(review.referenceImages).map((img: string, i: number) => (
-                          <img key={i} src={img} alt="" className="w-20 h-20 object-cover rounded-xl border border-gray-100" />
-                        ))}
+        {/* Reviews list */}
+        <section className="mt-10">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold text-slate-900">Customer reviews</h2>
+            {!isEmbed && (
+              <Link
+                href={`/review/${form.slug}`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Write a review <FiArrowUpRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+              <p className="text-slate-400">No reviews yet. Be the first!</p>
+            </div>
+          ) : (
+            <ul className="space-y-4">
+              {reviews.map((review) => {
+                const meta = ratingMeta[review.rating] ?? ratingMeta[3];
+                const Icon = meta.Icon;
+                return (
+                  <li
+                    key={review.id}
+                    className="bg-white rounded-2xl border border-slate-100 p-6 hover:border-slate-200 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Avatar */}
+                      <div className="shrink-0">
+                        {review.profileImage ? (
+                          <img
+                            src={review.profileImage}
+                            alt=""
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold bg-slate-100 text-slate-600">
+                            {initials(review.fullName) || (
+                              <Icon className="w-6 h-6" style={{ color: meta.color }} />
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    {/* Reply */}
-                    {review.reply && (
-                      <div className="mt-4 ml-4 pl-4 border-l-2 rounded-r-xl p-4" style={{ borderColor: form.primaryColor, backgroundColor: `${form.primaryColor}08` }}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {form.user.businessLogo && (
-                            <img src={form.user.businessLogo} alt="" className="w-5 h-5 rounded object-contain" />
+                      {/* Body */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-1">
+                          <span className="font-semibold text-slate-900">{review.fullName}</span>
+                          {review.companyName && (
+                            <span className="text-xs text-slate-400">from {review.companyName}</span>
                           )}
-                          <span className="text-xs font-semibold" style={{ color: form.primaryColor }}>
-                            {form.user.businessName}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                            <FiShield className="w-3 h-3" /> Verified
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700">{review.reply}</p>
+
+                        <div className="flex items-center gap-3 mb-3 flex-wrap">
+                          <Stars rating={review.rating} />
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: `${meta.color}14`, color: meta.color }}
+                          >
+                            <Icon className="w-3.5 h-3.5" aria-hidden /> {meta.label}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(review.createdAt).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                            &nbsp;&middot;&nbsp;{review.country}
+                          </span>
+                        </div>
+
+                        <p className="text-slate-700 leading-relaxed whitespace-pre-line">
+                          {review.message}
+                        </p>
+
+                        {/* Reference images */}
+                        {review.referenceImages && (
+                          <div className="flex gap-2 mt-4 flex-wrap">
+                            {(JSON.parse(review.referenceImages) as string[]).map((img, i) => (
+                              <a
+                                key={i}
+                                href={img}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block w-20 h-20 rounded-xl overflow-hidden border border-slate-100 hover:border-slate-300 transition-colors"
+                              >
+                                <img src={img} alt="" className="w-full h-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Owner reply */}
+                        {review.reply && (
+                          <div
+                            className="mt-4 p-4 rounded-xl border-l-2"
+                            style={{
+                              borderColor: form.primaryColor,
+                              backgroundColor: `${form.primaryColor}0A`,
+                            }}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              {form.user.businessLogo && (
+                                <img
+                                  src={form.user.businessLogo}
+                                  alt=""
+                                  className="w-5 h-5 rounded object-contain"
+                                />
+                              )}
+                              <span
+                                className="text-xs font-semibold"
+                                style={{ color: form.primaryColor }}
+                              >
+                                {form.user.businessName}
+                              </span>
+                              <span className="text-[11px] text-slate-400">replied</span>
+                            </div>
+                            <p className="text-sm text-slate-700 whitespace-pre-line">
+                              {review.reply}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Like */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => likeReview(review.id)}
+                            disabled={likedReviews.has(review.id)}
+                            className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${
+                              likedReviews.has(review.id)
+                                ? "text-rose-500"
+                                : "text-slate-400 hover:text-rose-500"
+                            }`}
+                          >
+                            <FiHeart
+                              className={`w-4 h-4 ${likedReviews.has(review.id) ? "fill-current" : ""}`}
+                            />
+                            {review.likes + (likedReviews.has(review.id) ? 1 : 0)}
+                          </button>
+                        </div>
                       </div>
-                    )}
-
-                    {/* Like */}
-                    <div className="mt-3 flex items-center gap-4">
-                      <button
-                        onClick={() => likeReview(review.id)}
-                        className={`flex items-center gap-1 text-sm transition-all ${
-                          likedReviews.has(review.id)
-                            ? "text-red-500"
-                            : "text-gray-400 hover:text-red-500"
-                        }`}
-                      >
-                        <FiHeart className={`w-4 h-4 ${likedReviews.has(review.id) ? "fill-current" : ""}`} />
-                        {review.likes + (likedReviews.has(review.id) ? 1 : 0)}
-                      </button>
                     </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
 
-        {/* See more / write review */}
-        <div className="mt-8 text-center space-y-4">
-          {!isEmbed && (
+        {/* CTA */}
+        <div className="mt-10 text-center">
+          {!isEmbed ? (
             <Link
               href={`/review/${form.slug}`}
-              className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-xl font-medium shadow-lg transition-all hover:opacity-90"
-              style={{ backgroundColor: form.primaryColor }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all hover:-translate-y-0.5"
+              style={{
+                backgroundColor: form.primaryColor,
+                boxShadow: `0 12px 24px ${form.primaryColor}33`,
+              }}
             >
-              Write a Review <FiArrowRight />
+              Write a review <FiArrowRight />
             </Link>
-          )}
-          {isEmbed && (
+          ) : (
             <a
               href={`${typeof window !== "undefined" ? window.location.origin : ""}/reviews/${form.slug}`}
               target="_blank"
-              className="inline-flex items-center gap-2 px-6 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all text-sm"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-white transition-all text-sm"
             >
-              See More Reviews <FiArrowRight />
+              See more reviews <FiArrowRight />
             </a>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-12 text-center">
-          <p className="text-xs text-gray-400">
-            Verified reviews collected by <span className="font-semibold text-indigo-500">ReviewHub</span>
+        <footer className="mt-12 text-center">
+          <p className="text-xs text-slate-400">
+            Verified reviews collected by{" "}
+            <span className="font-semibold text-slate-600">ReviewHub</span>
           </p>
-        </div>
-      </div>
+        </footer>
+      </main>
     </div>
   );
 }

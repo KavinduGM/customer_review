@@ -52,9 +52,9 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 # Copy generated Prisma client
 COPY --from=builder /app/src/generated ./src/generated
 
-# Persistent data directory for SQLite. Mount a volume here in production
-# so the database survives container restarts and redeploys.
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+# Persistent data directory for SQLite and user uploads. Mount a volume
+# at /app/data so both survive container restarts and redeploys.
+RUN mkdir -p /app/data/uploads && chown -R nextjs:nodejs /app/data
 VOLUME ["/app/data"]
 
 USER nextjs
@@ -67,6 +67,11 @@ ENV HOSTNAME="0.0.0.0"
 # Default DB location points at the persistent volume. Override at runtime
 # (e.g. `-e DATABASE_URL=...`) if you switch to Postgres or a managed DB.
 ENV DATABASE_URL="file:/app/data/dev.db"
+
+# Uploaded logos and review photos land on the volume too. Without this
+# they'd go to /app/public/uploads, which is part of the ephemeral image
+# and gets wiped on every redeploy.
+ENV UPLOAD_DIR="/app/data/uploads"
 
 # Apply any pending Prisma migrations, then boot the Next.js standalone server.
 CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node server.js"]

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { FiPlus, FiTrash2, FiEye, FiSave, FiStar } from "react-icons/fi";
+import { uploadFileWithToast } from "@/lib/upload-client";
 
 interface CustomField {
   id: string;
@@ -23,18 +24,16 @@ export default function NewFormPage() {
     logo: "",
     thankYouMessage: "Thank you for your valuable review! We appreciate your feedback.",
     primaryColor: "#4F46E5",
-    secondaryColor: "#818CF8",
     backgroundColor: "#F9FAFB",
     textColor: "#111827",
     customFields: [] as CustomField[],
   });
 
   const uploadLogo = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    setForm({ ...form, logo: data.url });
+    const url = await uploadFileWithToast(file);
+    if (!url) return;
+    setForm({ ...form, logo: url });
+    toast.success("Logo uploaded");
   };
 
   const addCustomField = () => {
@@ -171,11 +170,11 @@ export default function NewFormPage() {
 
           {/* Colors */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-5">Form Colors</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Form Colors</h2>
+            <p className="text-sm text-gray-500 mb-5">The primary color drives the header, buttons and accents — kept as a single solid tone for a clean, professional feel.</p>
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: "Primary Color", key: "primaryColor" },
-                { label: "Secondary Color", key: "secondaryColor" },
                 { label: "Background Color", key: "backgroundColor" },
                 { label: "Text Color", key: "textColor" },
               ].map((color) => (
@@ -293,12 +292,14 @@ export default function NewFormPage() {
               {/* Preview Header */}
               <div
                 className="p-8 text-center"
-                style={{ background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})` }}
+                style={{ backgroundColor: form.primaryColor }}
               >
                 {form.logo && (
-                  <img src={form.logo} alt="Logo" className="w-16 h-16 mx-auto mb-4 rounded-xl object-contain bg-white/20 p-2" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-white shadow-sm">
+                    <img src={form.logo} alt="Logo" className="max-h-12 max-w-12 object-contain" />
+                  </div>
                 )}
-                <h3 className="text-2xl font-bold text-white">{form.title || "Your Form Title"}</h3>
+                <h3 className="text-2xl font-bold text-white tracking-tight">{form.title || "Your Form Title"}</h3>
                 {form.description && (
                   <p className="text-white/80 mt-2 text-sm">{form.description}</p>
                 )}

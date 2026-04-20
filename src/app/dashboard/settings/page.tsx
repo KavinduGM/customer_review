@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { FiUser, FiSave, FiUpload } from "react-icons/fi";
+import { uploadFileWithToast } from "@/lib/upload-client";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -44,11 +45,10 @@ export default function SettingsPage() {
   }, [user?.id]);
 
   const uploadLogo = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    setForm((prev) => ({ ...prev, businessLogo: data.url }));
+    const url = await uploadFileWithToast(file);
+    if (!url) return;
+    setForm((prev) => ({ ...prev, businessLogo: url }));
+    toast.success("Logo uploaded");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

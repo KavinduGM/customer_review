@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { FiSave, FiPlus, FiTrash2, FiArrowLeft } from "react-icons/fi";
 import Link from "next/link";
+import { uploadFileWithToast } from "@/lib/upload-client";
 
 interface CustomField {
   id: string;
@@ -25,7 +26,6 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
     logo: "",
     thankYouMessage: "",
     primaryColor: "#4F46E5",
-    secondaryColor: "#818CF8",
     backgroundColor: "#F9FAFB",
     textColor: "#111827",
     customFields: [] as CustomField[],
@@ -45,11 +45,10 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
   }, [id]);
 
   const uploadLogo = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    setForm({ ...form, logo: data.url });
+    const url = await uploadFileWithToast(file);
+    if (!url) return;
+    setForm({ ...form, logo: url });
+    toast.success("Logo uploaded");
   };
 
   const addCustomField = () => {
@@ -182,11 +181,11 @@ export default function EditFormPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-5">Form Colors</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Form Colors</h2>
+          <p className="text-sm text-gray-500 mb-5">The primary color drives the header, buttons and accents.</p>
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: "Primary", key: "primaryColor" },
-              { label: "Secondary", key: "secondaryColor" },
               { label: "Background", key: "backgroundColor" },
               { label: "Text", key: "textColor" },
             ].map((c) => (
